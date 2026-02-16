@@ -1,90 +1,48 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-from datetime import datetime
 
-# පිටුවේ සැකසුම්
-st.set_page_config(page_title="Chinthaka Computers POS", page_icon="💻", layout="centered")
+# මූලික සැකසුම්
+st.set_page_config(page_title="Chinthaka POS")
 
 # Google Sheets සම්බන්ධතාවය
-conn = st.connection("gsheets", type=GSheetsConnection)
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+except Exception as e:
+    st.error("Sheet Connection Error!")
 
-# ලස්සන රිසිට් එකක් ඩිසයින් කිරීම
-def generate_receipt(name, device, issue, price):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    receipt_html = f"""
-    <div style="border: 2px dashed #333; padding: 20px; font-family: 'Courier New', Courier, monospace; background-color: #f9f9f9; color: #000; border-radius: 10px;">
-        <h2 style="text-align: center; margin-bottom: 5px;">CHINTHAKA COMPUTERS</h2>
-        <p style="text-align: center; font-size: 12px; margin-top: 0;">No. 123, Kandy Road, Sri Lanka<br>Tel: 07x-xxxxxxx</p>
-        <hr>
-        <p><b>Date:</b> {now}</p>
-        <p><b>Customer:</b> {name}</p>
-        <p><b>Device:</b> {device}</p>
-        <hr>
-        <table style="width:100%">
-            <tr>
-                <td style="text-align: left;">Description: {issue}</td>
-                <td style="text-align: right;">Rs. {price:,.2f}</td>
-            </tr>
-        </table>
-        <hr>
-        <h3 style="text-align: right;">TOTAL: Rs. {price:,.2f}</h3>
-        <p style="text-align: center; font-size: 14px; margin-top: 20px;">*** Thank You! Come Again! ***</p>
-    </div>
-    """
-    return receipt_html
+st.title("💻 Chinthaka Computers")
 
-# මෙනුව
-st.sidebar.title("Chinthaka POS")
-menu = ["අලුත්වැඩියා (Repairs)", "අලෙවි වාර්තා (View Data)"]
-choice = st.sidebar.selectbox("පද්ධති මෙනුව", menu)
+# ඉතාම සරල Form එකක්
+with st.form("test_form"):
+    cust_name = st.text_input("පාරිභෝගිකයාගේ නම")
+    price = st.number_input("මිල", min_value=0)
+    submit = st.form_submit_button("සේව් කරන්න")
 
-if choice == "අලුත්වැඩියා (Repairs)":
-    st.subheader("🛠️ New Repair Job & Billing")
-    
-    with st.form("repair_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            cust_name = st.text_input("පාරිභෝගිකයාගේ නම")
-            device = st.text_input("උපාංගය (Laptop/Mouse/etc)")
-        with col2:
-            price = st.number_input("මිල (Rs.)", min_value=0.0, step=100.0)
-            status = st.selectbox("තත්ත්වය", ["Pending", "Completed"])
-        
-        issue = st.text_area("දෝෂය හෝ විස්තරය")
-        
-        submitted = st.form_submit_button("ඇතුළත් කර බිල්පත සාදන්න")
-        
-        if submitted:
-            if cust_name and device:
-                try:
-                    new_data = pd.DataFrame([{
-                        "Date": datetime.now().strftime("%Y-%m-%d"),
-                        "Customer": cust_name,
-                        "Device": device,
-                        "Issue": issue,
-                        "Price": price,
-                        "Status": status
-                    }])
-                    
-                    # Google Sheet එකෙන් දත්ත කියවීම (මෙතන Repairs කියන නම හරියටම තියෙන්න ඕනේ)
-                    existing_data = conn.read(worksheet="Repairs")
-                    updated_df = pd.concat([existing_data, new_data], ignore_index=True)
-                    
-                    # දත්ත යාවත්කාලීන කිරීම
-                    conn.update(worksheet="Repairs", data=updated_df)
-                    
-                    st.success("✅ දත්ත සාර්ථකව සේව් වුණා!")
-                    st.markdown(generate_receipt(cust_name, device, issue, price), unsafe_allow_html=True)
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            else:
-                st.warning("කරුණාකර නම සහ උපාංගය ඇතුළත් කරන්න.")
+    if submit:
+        if cust_name:
+            try:
+                # දැනට තියෙන දත්ත කියවීම
+                df = conn.read(worksheet="Repairs")
+                
+                # අලුත් දත්ත පේළිය
+                new_data = pd.DataFrame([{"Customer": cust_name, "Price": price}])
+                
+                # එකතු කිරීම
+                updated_df = pd.concat([df, new_data], ignore_index=True)
+                
+                # Sheet එකට යැවීම
+                conn.update(worksheet="Repairs", data=updated_df)
+                st.success("සාර්ථකව සේව් වුණා!")
+            except Exception as e:
+                st.error(f"Error: {e}")
+        else:
+            st.warning("නම ඇතුළත් කරන්න")
 
-elif choice == "අලෙවි වාර්තා (View Data)":
-    st.subheader("📊 Past Transactions")
+# දත්ත පෙන්වීම
+if st.button("දත්ත පෙන්වන්න"):
     try:
         data = conn.read(worksheet="Repairs")
-        st.dataframe(data, use_container_width=True)
-    except Exception as e:
-        st.error("දත්ත පෙන්විය නොහැක. Google Sheet එකේ 'Repairs' නමින් Sheet එකක් තිබේදැයි බලන්න.")
+        st.write(data)
+    except:
+        st.error("දත්ත කියවීමට බැහැ")
