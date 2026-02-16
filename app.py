@@ -3,13 +3,13 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
 
-# පිටුවේ සැකසුම් - පෑජ් එකේ පෙනුම සකස් කිරීම
+# පිටුවේ සැකසුම්
 st.set_page_config(page_title="Chinthaka Computers POS", page_icon="💻", layout="centered")
 
-# Google Sheets සම්බන්ධතාවය ස්ථාපනය කිරීම
+# Google Sheets සම්බන්ධතාවය
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# ලස්සන රිසිට් එකක් ඩිසයින් කිරීම (HTML/CSS භාවිතා කර)
+# ලස්සන රිසිට් එකක් ඩිසයින් කිරීම
 def generate_receipt(name, device, issue, price):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     receipt_html = f"""
@@ -34,8 +34,7 @@ def generate_receipt(name, device, issue, price):
     """
     return receipt_html
 
-# පැත්තක තියෙන මෙනුව (Sidebar)
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2004/2004699.png", width=100)
+# මෙනුව
 st.sidebar.title("Chinthaka POS")
 menu = ["අලුත්වැඩියා (Repairs)", "අලෙවි වාර්තා (View Data)"]
 choice = st.sidebar.selectbox("පද්ධති මෙනුව", menu)
@@ -59,7 +58,6 @@ if choice == "අලුත්වැඩියා (Repairs)":
         if submitted:
             if cust_name and device:
                 try:
-                    # අලුත් දත්ත පේළිය සෑදීම
                     new_data = pd.DataFrame([{
                         "Date": datetime.now().strftime("%Y-%m-%d"),
                         "Customer": cust_name,
@@ -69,23 +67,19 @@ if choice == "අලුත්වැඩියා (Repairs)":
                         "Status": status
                     }])
                     
-                    # දැනට තියෙන දත්ත කියවා අලුත් දත්ත එකතු කිරීම
+                    # Google Sheet එකෙන් දත්ත කියවීම (මෙතන Repairs කියන නම හරියටම තියෙන්න ඕනේ)
                     existing_data = conn.read(worksheet="Repairs")
                     updated_df = pd.concat([existing_data, new_data], ignore_index=True)
                     
-                    # Google Sheet එකට දත්ත යැවීම
+                    # දත්ත යාවත්කාලීන කිරීම
                     conn.update(worksheet="Repairs", data=updated_df)
                     
-                    st.success("✅ දත්ත සාර්ථකව Google Sheet එකට ඇතුළත් කළා!")
-                    
-                    # ලස්සන රිසිට් එක පෙන්වීම
-                    st.markdown("### 📄 පාරිභෝගික රිසිට් එක")
+                    st.success("✅ දත්ත සාර්ථකව සේව් වුණා!")
                     st.markdown(generate_receipt(cust_name, device, issue, price), unsafe_allow_html=True)
-                    st.info("💡 මෙම රිසිට් එක Screen එකෙන් Print කර පාරිභෝගිකයාට ලබාදිය හැක.")
                 except Exception as e:
-                    st.error(f"Error: {e}. Please check your Google Sheet connection.")
+                    st.error(f"Error: {e}")
             else:
-                st.warning("කරුණාකර නම සහ උපාංගය යන දෙකම ඇතුළත් කරන්න.")
+                st.warning("කරුණාකර නම සහ උපාංගය ඇතුළත් කරන්න.")
 
 elif choice == "අලෙවි වාර්තා (View Data)":
     st.subheader("📊 Past Transactions")
@@ -93,4 +87,4 @@ elif choice == "අලෙවි වාර්තා (View Data)":
         data = conn.read(worksheet="Repairs")
         st.dataframe(data, use_container_width=True)
     except Exception as e:
-        st.error("දත්ත කියවීමට නොහැක. ඔබගේ Google Sheet එකේ 'Repairs' නමින් ටැබ් එකක් තිබේදැයි පරීක්ෂා කරන්න.")
+        st.error("දත්ත පෙන්විය නොහැක. Google Sheet එකේ 'Repairs' නමින් Sheet එකක් තිබේදැයි බලන්න.")
