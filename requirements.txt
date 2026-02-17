@@ -1,5 +1,6 @@
-streamlit 
-pandas 
-reportlab 
+streamlit
+pandas
+reportlab
+sqlite3
 fastapi
 uvicorn
